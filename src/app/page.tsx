@@ -1,141 +1,234 @@
 "use client";
-
-import { useState } from "react";
-import CollateralTrackingChart from "@/components/collateral-tracking-chart";
-import ApplicationsList from "@/components/applications-list";
-import SpeedGauges from "@/components/speed-gauges";
-import ExternalServicesGauges from "@/components/external-services-gauges";
-import StagesHistogram from "@/components/stages-histogram";
-import CompletedApplicationsList from "@/components/completed-applications-list";
+import { useState, useEffect } from "react";
+import { TrendingUp, Clock, CheckCircle, AlertCircle, FileText, Activity, Zap } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import GaugeChart from "@/components/dashboard/GaugeChart";
+import PieChartSection from "@/components/dashboard/PieChartSection";
+import ClaimsList from "@/components/dashboard/ClaimsList";
+import ServiceSpeedometer from "@/components/dashboard/ServiceSpeedometer";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
 
-export default function Home() {
+export default function DashboardPage() {
+  const [currentSpeed, setCurrentSpeed] = useState(127);
+  const [maxSpeed] = useState(200);
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
-    from: new Date(new Date().setDate(new Date().getDate() - 30)),
-    to: new Date()
-  });
+  
+  // Данные для круговой диаграммы
+  const pieChartData = [
+    { name: "Работает AILI", value: 45, color: "#3b82f6" },
+    { name: "Собрано AILI", value: 120, color: "#22c55e" },
+    { name: "Требует подключения", value: 35, color: "#f97316" }
+  ];
+  
+  // Моковые данные для статистики
+  const stats = [
+    {
+      title: "Скорость обработки заявок",
+      value: "127",
+      icon: TrendingUp,
+      color: "text-blue-600",
+      isGauge: true,
+      clickable: false
+    },
+    {
+      title: "Собрано AILI",
+      value: "127",
+      icon: CheckCircle,
+      color: "text-green-600",
+      clickable: true
+    },
+    {
+      title: "Поступило заявок",
+      value: "89",
+      icon: FileText,
+      color: "text-blue-600",
+      clickable: false
+    },
+    {
+      title: "Требует подключения",
+      value: "8",
+      icon: AlertCircle,
+      color: "text-orange-600",
+      clickable: true,
+      extraHeight: true
+    },
+    {
+      title: "Работает AILI",
+      value: "45",
+      icon: Activity,
+      color: "text-green-600",
+      clickable: true,
+      extraHeight: true
+    },
+    {
+      title: "Автономность",
+      value: "94.2%",
+      icon: Zap,
+      color: "text-blue-600",
+      clickable: false,
+      extraHeight: true
+    }
+  ];
+
+  // Данные для спидометров внешних сервисов
+  const [serviceSpeeds, setServiceSpeeds] = useState([
+    { name: "ЕГРН", current: 850, average: 1000 },
+    { name: "ЕСИН", current: 1200, average: 1500 },
+    { name: "ЕФР", current: 600, average: 800 },
+    { name: "ГИБДД", current: 1800, average: 2000 },
+    { name: "Онлайн Оценка", current: 450, average: 500 }
+  ]);
+
+  // Симуляция обновления данных в реальном времени
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSpeed(prev => {
+        const change = Math.floor(Math.random() * 11) - 5;
+        const newValue = prev + change;
+        return Math.max(80, Math.min(180, newValue));
+      });
+
+      // Обновляем скорости внешних сервисов
+      setServiceSpeeds(prev => prev.map(service => ({
+        ...service,
+        current: Math.max(
+          service.average * 0.3,
+          Math.min(service.average * 2.5, service.current + (Math.random() - 0.5) * 200)
+        )
+      })));
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSectorClick = (sector: string) => {
+    setSelectedSector(sector === selectedSector ? null : sector);
+  };
+
+  const handleStatClick = (title: string) => {
+    handleSectorClick(title);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Выбор временного интервала */}
-          <div className="bg-white rounded-xl shadow-sm border p-6 mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Период анализа</h2>
-                <p className="text-sm text-muted-foreground">
-                  {dateRange.from && dateRange.to
-                    ? `${format(dateRange.from, "dd.MM.yyyy", { locale: ru })} - ${format(
-                        dateRange.to,
-                        "dd.MM.yyyy",
-                        { locale: ru }
-                      )}`
-                    : "Выберите период"}
-                </p>
+      <main className="container py-8">
+        <div className="space-y-8">
+          {/* Заголовок */}
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Панель мониторинга</h2>
+            <p className="text-muted-foreground">
+              Отслеживание работы AI-агента AILI в реальном времени
+            </p>
+          </div>
+
+          {/* Основная секция: слева круговая диаграмма, справа статистика */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Левая часть - Распределение заявок */}
+            <Card className="h-[400px]">
+              <CardHeader>
+                <CardTitle className="text-center">Распределение заявок</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[calc(100%-5rem)]">
+                <PieChartSection 
+                  data={pieChartData} 
+                  onSectorClick={handleSectorClick}
+                  selectedSector={selectedSector}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Правая часть - Статистические блоки в две линии */}
+            <div className="space-y-4">
+              <div className="grid gap-4 grid-cols-3">
+                {stats.slice(0, 3).map((stat, index) => {
+                  const Icon = stat.icon;
+                  return (
+                    <Card 
+                      key={index}
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        stat.clickable && selectedSector === stat.title 
+                          ? 'ring-2 ring-blue-500 ring-offset-2' 
+                          : ''
+                      } ${stat.extraHeight ? 'h-[calc(100%+60px)]' : ''}`}
+                      onClick={() => stat.clickable && handleStatClick(stat.title)}
+                    >
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-xs font-medium">
+                          {stat.title}
+                        </CardTitle>
+                        <Icon className={`h-3 w-3 ${stat.color}`} />
+                      </CardHeader>
+                      <CardContent>
+                        {stat.isGauge ? (
+                          <div className="h-16">
+                            <GaugeChart 
+                              value={currentSpeed} 
+                              max={maxSpeed} 
+                              label="заявок/день" 
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-lg font-bold">{stat.value}</div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
-              
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[300px] justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "dd.MM.yyyy", { locale: ru })} -{" "}
-                          {format(dateRange.to, "dd.MM.yyyy", { locale: ru })}
-                        </>
-                      ) : (
-                        format(dateRange.from, "dd.MM.yyyy", { locale: ru })
-                      )
-                    ) : (
-                      <span>Выберите даты</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange.from}
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={2}
-                    locale={ru}
+              <div className="grid gap-4 grid-cols-3">
+                {stats.slice(3).map((stat, index) => {
+                  const Icon = stat.icon;
+                  return (
+                    <Card 
+                      key={index + 3}
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        stat.clickable && selectedSector === stat.title 
+                          ? 'ring-2 ring-blue-500 ring-offset-2' 
+                          : ''
+                      } ${stat.extraHeight ? 'h-[calc(100%+60px)]' : ''}`}
+                      onClick={() => stat.clickable && handleStatClick(stat.title)}
+                    >
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-xs font-medium">
+                          {stat.title}
+                        </CardTitle>
+                        <Icon className={`h-3 w-3 ${stat.color}`} />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-lg font-bold">{stat.value}</div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Спидометры внешних сервисов */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Скорость ответов внешних сервисов</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-5">
+                {serviceSpeeds.map((service, index) => (
+                  <ServiceSpeedometer
+                    key={index}
+                    serviceName={service.name}
+                    currentSpeed={Math.round(service.current)}
+                    averageSpeed={service.average}
+                    unit="мс"
                   />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
-          <SpeedGauges />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <CollateralTrackingChart 
-              onSectorClick={setSelectedSector}
-              selectedSector={selectedSector}
-            />
-            <ApplicationsList selectedSector={selectedSector} />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-lg p-4 border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Всего объектов</p>
-                  <p className="text-2xl font-bold text-gray-900">1,247</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
-                </div>
+                ))}
               </div>
-            </div>
-            
-            <div className="bg-white rounded-lg p-4 border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Обработано сегодня</p>
-                  <p className="text-2xl font-bold text-gray-900">89</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <div className="w-6 h-6 bg-green-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg p-4 border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Завершено</p>
-                  <p className="text-2xl font-bold text-gray-900">1,002</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <div className="w-6 h-6 bg-purple-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <StagesHistogram />
-
-          <div className="mt-8">
-            <CompletedApplicationsList />
-          </div>
-
-          <ExternalServicesGauges />
+          {/* Перечень заявок */}
+          <ClaimsList filterStatus={selectedSector || undefined} />
         </div>
       </main>
       
